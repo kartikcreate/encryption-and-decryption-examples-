@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Hill Cipher</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 40px;
+      background: #f4f4f4;
+    }
+    h2 {
+      color: #333;
+    }
+    input, select, button {
+      margin: 8px 0;
+      padding: 10px;
+      font-size: 16px;
+      width: 100%;
+      max-width: 300px;
+    }
+    .matrix-input {
+      display: grid;
+      gap: 5px;
+      margin-bottom: 20px;
+    }
+    .result {
+      background: #fff;
+      padding: 10px;
+      border-radius: 5px;
+      margin-top: 20px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>Hill Cipher (Encrypt & Decrypt)</h2>
+
+  <label>Text:</label>
+  <input type="text" id="textInput" placeholder="Enter your message" />
+
+  <label>Matrix Size:</label>
+  <select id="matrixSize" onchange="generateMatrixInputs()">
+    <option value="2">2 x 2</option>
+    <option value="3">3 x 3</option>
+  </select>
+
+  <div id="matrixInputs" class="matrix-input"></div>
+
+  <label>Operation:</label>
+  <select id="operation">
+    <option value="encrypt">Encrypt</option>
+    <option value="decrypt">Decrypt</option>
+  </select>
+
+  <button onclick="processHillCipher()">Run</button>
+
+  <div class="result" id="output"></div>
+
+  <script>
+    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+    function generateMatrixInputs() {
+      const size = parseInt(document.getElementById("matrixSize").value);
+      const container = document.getElementById("matrixInputs");
+      container.innerHTML = "";
+      container.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
+      for (let i = 0; i < size * size; i++) {
+        const input = document.createElement("input");
+        input.type = "number";
+        input.id = "m" + i;
+        input.placeholder = `M${i}`;
+        container.appendChild(input);
+      }
+    }
+
+    function mod(n, m) {
+      return ((n % m) + m) % m;
+    }
+
+    function modInverse(a, m) {
+      for (let i = 1; i < m; i++) {
+        if ((a * i) % m === 1) return i;
+      }
+      return null;
+    }
+
+    function getMatrix(size) {
+      let matrix = [];
+      for (let r = 0; r < size; r++) {
+        matrix[r] = [];
+        for (let c = 0; c < size; c++) {
+          matrix[r][c] = parseInt(document.getElementById(`m${r * size + c}`).value);
+        }
+      }
+      return matrix;
+    }
+
+    function matrixDeterminant(m) {
+      if (m.length === 2) {
+        return mod(m[0][0]*m[1][1] - m[0][1]*m[1][0], 26);
+      } else {
+        // for 3x3
+        const [a,b,c] = m[0];
+        const [d,e,f] = m[1];
+        const [g,h,i] = m[2];
+        return mod(a*(e*i - f*h) - b*(d*i - f*g) + c*(d*h - e*g), 26);
+      }
+    }
+
+    function matrixInverse(m) {
+      const size = m.length;
+      const det = matrixDeterminant(m);
+      const invDet = modInverse(det, 26);
+      if (invDet === null) return null;
+
+      let adj = [];
+      if (size === 2) {
+        adj = [
+          [m[1][1], -m[0][1]],
+          [-m[1][0], m[0][0]]
+        ];
+      } else {
+        adj = [];
+        for (let r = 0; r < 3; r++) {
+          adj[r] = [];
+          for (let c = 0; c < 3; c++) {
+            const minor = [
+              m[(r+1)%3].filter((_, i) => i !== c),
+              m[(r+2)%3].filter((_, i) => i !== c)
+            ];
+            const detMinor = minor[0][0]*minor[1][1] - minor[0][1]*minor[1][0];
+            adj[r][c] = ((r + c) % 2 === 0 ? 1 : -1) * detMinor;
+          }
+        }
+        adj = adj[0].map((_, c) => adj.map(row => row[c])); // transpose
+      }
+
+      return adj.map(row => row.map(x => mod(x * invDet, 26)));
+    }
+
+    function textToMatrix(text, size) {
+      let nums = text.toUpperCase().replace(/[^A-Z]/g, "").split("").map(c => alphabet.indexOf(c));
+      while (nums.length % size !== 0) nums.push(alphabet.indexOf("X"));
+      let blocks = [];
+      for (let i = 0; i < nums.length; i += size) {
+        blocks.push(nums.slice(i, i + size));
+      }
+      return blocks;
+    }
+
+    function matrixMultiply(mat, block) {
+      return mat.map(row => mod(row.reduce((sum, val, idx) => sum + val * block[idx], 0), 26));
+    }
+
+    function processHillCipher() {
+      const size = parseInt(document.getElementById("matrixSize").value);
+      const text = document.getElementById("textInput").value;
+      const operation = document.getElementById("operation").value;
+      const matrix = getMatrix(size);
+
+      let valid = matrix.flat().every(x => !isNaN(x));
+      if (!valid) {
+        document.getElementById("output").textContent = "Please fill all matrix values.";
+        return;
+      }
+
+      let usedMatrix = matrix;
+      if (operation === "decrypt") {
+        usedMatrix = matrixInverse(matrix);
+        if (!usedMatrix) {
+          document.getElementById("output").textContent = "Matrix not invertible mod 26.";
+          return;
+        }
+      }
+
+      let blocks = textToMatrix(text, size);
+      let result = blocks.map(block => matrixMultiply(usedMatrix, block));
+      let output = result.flat().map(n => alphabet[n]).join("");
+
+      document.getElementById("output").textContent = (operation === "encrypt" ? "Encrypted" : "Decrypted") + " text: " + output;
+    }
+
+    // Initialize matrix inputs on load
+    window.onload = generateMatrixInputs;
+  </script>
+
+</body>
+</html>
