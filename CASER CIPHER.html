@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Caesar Cipher</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Roboto', sans-serif;
+    }
+
+    body {
+      background: #f2f4f6;
+      color: #333;
+    }
+
+    h1 {
+      text-align: center;
+      color: #0F9D58;
+      font-size: 2.5rem;
+      margin: 1rem 0;
+      letter-spacing: 2px;
+    }
+
+    .container {
+      display: flex;
+      flex-direction: column;
+      padding: 1rem;
+      gap: 1rem;
+    }
+
+    .box {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      padding: 1rem;
+    }
+
+    .box h2 {
+      color: #0F9D58;
+      margin-bottom: 1rem;
+      text-align: center;
+    }
+
+    textarea {
+      width: 100%;
+      height: 150px;
+      padding: 0.5rem;
+      font-size: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      resize: vertical;
+    }
+
+    input[type="text"], select {
+      width: 100%;
+      padding: 0.4rem;
+      margin-top: 0.3rem;
+      font-size: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+
+    .row {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .row label {
+      font-weight: 500;
+    }
+
+    .radio-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .radio-row label {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    #submit {
+      padding: 0.6rem;
+      background: #0F9D58;
+      color: #fff;
+      font-size: 1rem;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    #submit:hover {
+      background: #0cbf66;
+    }
+
+    @media (min-width: 768px) {
+      .container {
+        flex-direction: row;
+        justify-content: space-between;
+      }
+
+      .box {
+        flex: 1;
+        margin: 0 0.5rem;
+      }
+
+      .container > .box:first-child {
+        max-width: 300px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>Caesar Cipher</h1>
+  <div class="container">
+    <div class="box">
+      <h2>Controls</h2>
+      <form id="controls">
+        <div class="row radio-row">
+          <label><input type="radio" name="code" value="encode" checked /> Encode</label>
+          <label><input type="radio" name="code" value="decode" /> Decode</label>
+        </div>
+        <div class="row">
+          <label for="shift-input">Shift Key</label>
+          <input type="text" id="shift-input" value="3" />
+        </div>
+        <div class="row">
+          <label for="mod-input">Modulo</label>
+          <input type="text" id="mod-input" value="36" />
+        </div>
+        <div class="row">
+          <label for="alphabet-input">Alphabet</label>
+          <input type="text" id="alphabet-input" value="abcdefghijklmnopqrstuvwxyz0123456789" />
+        </div>
+        <div class="row">
+          <label for="letter-case">Letter Case</label>
+          <select id="letter-case">
+            <option value="1">Maintain Case</option>
+            <option value="2">Lower Case</option>
+            <option value="3">Upper Case</option>
+          </select>
+        </div>
+        <div class="row">
+          <label for="foreign-chars">Foreign Chars</label>
+          <select id="foreign-chars">
+            <option value="1">Remove</option>
+            <option value="2">Ignore</option>
+          </select>
+        </div>
+        <button id="submit" type="submit">Submit</button>
+      </form>
+    </div>
+
+    <div class="box">
+      <h2 id="heading-input">Plaintext</h2>
+      <textarea id="input-text" placeholder="Enter text..."></textarea>
+    </div>
+
+    <div class="box">
+      <h2 id="heading-output">Ciphertext</h2>
+      <textarea id="output-text" readonly placeholder="Output..."></textarea>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById("controls");
+    const hInput = document.getElementById("heading-input");
+    const hOutput = document.getElementById("heading-output");
+    const inputText = document.getElementById("input-text");
+    const outputText = document.getElementById("output-text");
+
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+
+      const selectedMode = form.code.value;
+      const shift = parseInt(document.getElementById("shift-input").value);
+      const mod = parseInt(document.getElementById("mod-input").value);
+      const alphabet = document.getElementById("alphabet-input").value.toLowerCase();
+      const letterCase = document.getElementById("letter-case").value;
+      const foreignChars = document.getElementById("foreign-chars").value;
+      let text = inputText.value;
+
+      if (selectedMode === "encode") {
+        hInput.textContent = "Plaintext";
+        hOutput.textContent = "Ciphertext";
+      } else {
+        hInput.textContent = "Ciphertext";
+        hOutput.textContent = "Plaintext";
+      }
+
+      function caesar(text, shift) {
+        if (selectedMode === "decode") shift = -shift;
+        if (foreignChars === "1") text = text.replace(/[^a-zA-Z0-9 ]/g, "");
+
+        return [...text].map(char => {
+          const isUpper = char === char.toUpperCase();
+          const lowerChar = char.toLowerCase();
+          const index = alphabet.indexOf(lowerChar);
+
+          if (index === -1) return char;
+
+          let newIndex = (index + shift) % mod;
+          if (newIndex < 0) newIndex += mod;
+
+          let newChar = alphabet[newIndex];
+          return isUpper ? newChar.toUpperCase() : newChar;
+        }).join('');
+      }
+
+      let result = caesar(text, shift);
+
+      if (letterCase === "2") result = result.toLowerCase();
+      else if (letterCase === "3") result = result.toUpperCase();
+
+      outputText.value = result;
+    });
+  </script>
+</body>
+</html>
